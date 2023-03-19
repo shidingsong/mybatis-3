@@ -31,6 +31,10 @@ public class PropertyParser {
    * {@code true}, you can specify key and default value on placeholder (e.g. {@code ${db.username:postgres}}).
    * </p>
    *
+   * 环境变量(org.apache.ibatis.parsing.PropertyParser.enable-default-value)
+   * 设置占位符是否支持有默认值，该键默认为false；
+   *     默认值为false代表占位符没有默认值
+   *     默认值为true代表可以指定键和默认值，例如 ${db.username:postgres}
    * @since 3.4.2
    */
   public static final String KEY_ENABLE_DEFAULT_VALUE = KEY_PREFIX + "enable-default-value";
@@ -40,6 +44,9 @@ public class PropertyParser {
    * <p>
    * The default separator is {@code ":"}.
    * </p>
+   *
+   * 环境变量(org.apache.ibatis.parsing.PropertyParser.default-value-separator)
+   * 设置键和默认值的分隔符，默认为 :
    *
    * @since 3.4.2
    */
@@ -59,9 +66,9 @@ public class PropertyParser {
   }
 
   private static class VariableTokenHandler implements TokenHandler {
-    private final Properties variables;
-    private final boolean enableDefaultValue;
-    private final String defaultValueSeparator;
+    private final Properties variables; // 环境变量 优先级高
+    private final boolean enableDefaultValue; // 占位符是否支持有默认值
+    private final String defaultValueSeparator; // 占位符和默认值的分隔符
 
     private VariableTokenHandler(Properties variables) {
       this.variables = variables;
@@ -74,7 +81,7 @@ public class PropertyParser {
     }
 
     @Override
-    public String handleToken(String content) {
+    public String handleToken(String content) {// 优先从环境变量中取值，没有取默认值，未设置默认值返回${key}
       if (variables != null) {
         String key = content;
         if (enableDefaultValue) {

@@ -25,6 +25,8 @@ public class MapUtil {
    * A temporary workaround for Java 8 specific performance issue JDK-8161372 .<br>
    * This class should be removed once we drop Java 8 support.
    *
+   *  指定map中存在key对应value 返回value，不存在通过指定函数计算出value，设置到key对应value中，返回计算值
+   *
    * @see <a href=
    *      "https://bugs.openjdk.java.net/browse/JDK-8161372">https://bugs.openjdk.java.net/browse/JDK-8161372</a>
    */

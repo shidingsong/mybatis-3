@@ -25,7 +25,7 @@ import org.apache.ibatis.reflection.Reflector;
  */
 public class MethodInvoker implements Invoker {
 
-  private final Class<?> type;
+  private final Class<?> type;// 方法入参个数为1 为入参类型，否则为方法返回值类型
   private final Method method;
 
   public MethodInvoker(Method method) {

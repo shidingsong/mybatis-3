@@ -38,7 +38,9 @@ public abstract class BaseBuilder {
 
   public BaseBuilder(Configuration configuration) {
     this.configuration = configuration;
+    // 初始化类型别名
     this.typeAliasRegistry = this.configuration.getTypeAliasRegistry();
+    // 初始化类型处理器
     this.typeHandlerRegistry = this.configuration.getTypeHandlerRegistry();
   }
 

@@ -53,23 +53,26 @@ import org.apache.ibatis.util.MapUtil;
  */
 public class Reflector {
 
+  // 该方法通过判断 Class类中 isRecord方法存在与否判断 jdk版本
+  // true, Class.isRecord()存在，jdk version > 14, false, jdk version < 14
   private static final MethodHandle isRecordMethodHandle = getIsRecordMethodHandle();
   private final Class<?> type;
-  private final String[] readablePropertyNames;
-  private final String[] writablePropertyNames;
+  private final String[] readablePropertyNames; // getXXX()、isXXX()方法中的XXX属性名
+  private final String[] writablePropertyNames; // setXX()方法中的XXX属性名
   private final Map<String, Invoker> setMethods = new HashMap<>();
   private final Map<String, Invoker> getMethods = new HashMap<>();
-  private final Map<String, Class<?>> setTypes = new HashMap<>();
-  private final Map<String, Class<?>> getTypes = new HashMap<>();
-  private Constructor<?> defaultConstructor;
+  private final Map<String, Class<?>> setTypes = new HashMap<>();// (属性名,入参类型)
+  private final Map<String, Class<?>> getTypes = new HashMap<>();// (属性名,出参类型)
+  private Constructor<?> defaultConstructor;// class类中无参构造器
 
   private final Map<String, String> caseInsensitivePropertyMap = new HashMap<>();
 
   public Reflector(Class<?> clazz) {
     type = clazz;
     addDefaultConstructor(clazz);
+    // 解析class类及父类中所有方法，包括抽象类中接口方法
     Method[] classMethods = getClassMethods(clazz);
-    if (isRecord(type)) {
+    if (isRecord(type)) {// 是否使用了 record语法糖
       addRecordGetMethods(classMethods);
     } else {
       addGetMethods(classMethods);
@@ -91,6 +94,7 @@ public class Reflector {
         .forEach(m -> addGetMethod(m.getName(), m, false));
   }
 
+  // 寻找class类中无参构造器，初始化defaultConstructor
   private void addDefaultConstructor(Class<?> clazz) {
     Constructor<?>[] constructors = clazz.getDeclaredConstructors();
     Arrays.stream(constructors).filter(constructor -> constructor.getParameterTypes().length == 0).findAny()
@@ -277,6 +281,8 @@ public class Reflector {
   }
 
   /**
+   * 该方法返回一个数组，数组中包含class类及父类中所有声明的方法对象Method
+   *
    * This method returns an array containing all methods declared in this class and any superclass. We use this method,
    * instead of the simpler <code>Class.getMethods()</code>, because we want to look for private methods as well.
    *
@@ -286,14 +292,23 @@ public class Reflector {
    * @return An array containing all methods in this class
    */
   private Method[] getClassMethods(Class<?> clazz) {
+    // uniqueMethods key = 方法签名
+    //   方法签名 = 无入参方法返回 Class名#方法名，
+    //             入参方法返回 Class名#方法名:入参1类型Class名,入参2类型Class名,...
+    //       public void method(String s) {
+    //    　　　 System.out.println(s);
+    //    　  }
+    //     方法签名 = Void#method:String
     Map<String, Method> uniqueMethods = new HashMap<>();
     Class<?> currentClass = clazz;
+    // getDeclaredMethod*()获取的是类自身声明的所有方法，包含public、protected和private方法。
+    // getMethod*()获取的是类的所有共有方法，包括自身的所有public方法，和从基类继承的、从接口实现的所有public方法。
     while (currentClass != null && currentClass != Object.class) {
       addUniqueMethods(uniqueMethods, currentClass.getDeclaredMethods());
 
       // we also need to look for interface methods -
       // because the class may be abstract
-      Class<?>[] interfaces = currentClass.getInterfaces();
+      Class<?>[] interfaces = currentClass.getInterfaces();//抽象类
       for (Class<?> anInterface : interfaces) {
         addUniqueMethods(uniqueMethods, anInterface.getMethods());
       }
@@ -306,9 +321,50 @@ public class Reflector {
     return methods.toArray(new Method[0]);
   }
 
+  /**
+   *  currentMethod.isBridge()是 Java反射中method.isBridge() 桥接方法
+   *
+   *  桥接方法是 JDK 1.5 引入泛型后，为了使Java的泛型方法生成的字节码和 1.5 版本前的字节码相兼容，
+   *  由编译器自动生成的方法。我们可以通过Method.isBridge()方法来判断一个方法是否是桥接方法。
+   *  假定接口
+   *     public interface SuperClass<T> {
+   *       void method(T t);
+   *     }
+   *  实现类
+   *     public class AClass implements SuperClass<String> {
+   *       @Override
+   *       public void method(String s) {
+   * 　　　　 System.out.println(s);
+   * 　　  }
+   *     }
+   *  因为泛型是在1.5引入的，为了向前兼容，所以会在编译时去掉泛型（泛型擦除）。
+   *  那么SuperClass接口中的method方法的参数在虚拟机中只能是Object。
+   *  public interface SuperClass {
+   *     void method(Object  t);
+   *  }
+   *  而 AClass 实现了SuperClass 接口，但是它的实现方法却是：
+   *  public void method(String s) {
+   * 　　System.out.println(s);
+   *  }
+   *  根本就没有实现 void method(Object t) 方法。 这怎么回事，其实虚拟机自动实现了一个方法。
+   *
+   *  AClass在虚拟机中是这个样子：
+   *  public class AClass implements SuperClass  {
+   *     public void method(String s) {  // 非桥接方法
+   *         System.out.println(s);
+   *     }
+   *     public void method(Object s) {  // 桥接方法
+   *          this.method((String) s);
+   *     }
+   *  }
+   *  这个void method(Object s)  就是桥接方法。
+   *
+   * @param uniqueMethods
+   * @param methods
+   */
   private void addUniqueMethods(Map<String, Method> uniqueMethods, Method[] methods) {
     for (Method currentMethod : methods) {
-      if (!currentMethod.isBridge()) {
+      if (!currentMethod.isBridge()) {// 排除桥接方法
         String signature = getSignature(currentMethod);
         // check to see if the method is already known
         // if it is known, then an extended class must have
@@ -320,6 +376,17 @@ public class Reflector {
     }
   }
 
+  /**
+   * 方法签名 = 无入参方法返回 Class名#方法名，
+   *            入参方法返回 Class名#方法名:入参1类型Class名,入参2类型Class名,...
+   * 如：    public void method(String s) {
+   *    　　　 System.out.println(s);
+   *    　  }
+   *  方法签名 = Void#method:String
+   *
+   * @param method
+   * @return
+   */
   private String getSignature(Method method) {
     StringBuilder sb = new StringBuilder();
     Class<?> returnType = method.getReturnType();
@@ -469,6 +536,118 @@ public class Reflector {
 
   /**
    * Class.isRecord() alternative for Java 15 and older.
+   * record语法糖， java14才出来的record，类似于enum，定义了一种特殊的类。用于标记不可变的数据类。
+   *
+   * 正常写法
+   * 定义一个用户类，一般会这么定义
+   * public class User {
+   *     private String name = null;
+   *     private String password = null;
+   *
+   *     public User(String name, String password) {
+   *         this.name = name;
+   *         this.password = password;
+   *     }
+   *
+   *     public String getName() {
+   *         return name;
+   *     }
+   *
+   *     public String getPassword() {
+   *         return password;
+   *     }
+   *
+   *     @Override
+   *     public boolean equals(Object o) {
+   *         //用于判断是否相等
+   *         if (this == o) return true;
+   *         if (!(o instanceof User)) return false;
+   *         User user = (User) o;
+   *         return name.equals(user.name) && password.equals(user.password);
+   *     }
+   *
+   *     @Override
+   *     public int hashCode() {
+   *         //hash算法
+   *         return Objects.hash(name, password);
+   *     }
+   *
+   *     @Override
+   *     public String toString() {
+   *         return "user{" +
+   *                 "name='" + name + '\'' +
+   *                 ", password='" + password + '\'' +
+   *                 '}';
+   *     }
+   * }
+   *
+   * 写个程序验证一下
+   * public class test {
+   *     public static void main(String[] args) {
+   *         User1 user = new User1("XiaoMing", "123456");
+   *         User1 user2 = new User1("XiaoMing", "123456");
+   *
+   *         System.out.println(user.name());
+   *         System.out.println(user.password());
+   *         System.out.println(user);
+   *         System.out.println(user.equals(user2));
+   *     }
+   * }
+   *
+   * 使用record 完成与上面相同的类，使用record，需要怎么写呢？ 只用一行：
+   *
+   * public record User1(String name,String password) {}
+   *
+   * 写个程序测试一下：
+   * public class test {
+   *     public static void main(String[] args) {
+   *         User1 user = new User1("XiaoMing", "123456");
+   *
+   *         System.out.println(user.name());
+   *         System.out.println(user.password());
+   *         System.out.println(user);
+   *     }
+   * }
+   *
+   * 分析：
+   *    1、getName方法变成了name，但是功能一样的，只是命名方式变了
+   *    2、因为是不可变数据类型，没有set方法
+   *    3、自动toString，虽然最后结果不一样，但是可以正常看，不是com.czcode.customer.User@b66c70b0这种玩意了
+   *    4、自动实现equals，如果不覆盖这个方法，两个对象比较时候会比较指向的对象是不是同一个对象，这个只是比了里面的值是否相等。
+   * 总结：这种类其实就是帮你写好了样例代码
+   *
+   * 继续进阶一下  record中可以覆盖构造方法、创建静态方法、定义自己的方法
+   * public record User1(String name, String password) {
+   *     //再定义一个构造方法
+   *     public User1(String name) {
+   *         this(name, null);
+   *     }
+   *
+   *     //额外定义的方法
+   *     public String nameToUppercase() {
+   *         return this.name.toUpperCase();
+   *     }
+   *
+   *     //静态方法
+   *     public static String nameAddPassword(User1 user1) {
+   *         return user1.name + user1.password;
+   *     }
+   * }
+   * 测试代码
+   *
+   * public class test {
+   *     public static void main(String[] args) {
+   *         User1 user = new User1("XiaoMing", "123456");
+   *
+   *         System.out.println(user.nameToUppercase());
+   *         System.out.println(User1.nameAddPassword(user));
+   *
+   *         User1 userAnotherConstructor = new User1("hello");
+   *         System.out.println(userAnotherConstructor);
+   *     }
+   * }
+   *
+   * 总结：这个关键字其实就相当于替你创建了一些样例代码（toSting，构造方法等），同时给你增加了一定限制条件（无法设置某个属性的值）。
    */
   private static boolean isRecord(Class<?> clazz) {
     try {
@@ -478,8 +657,16 @@ public class Reflector {
     }
   }
 
+  /**
+   * MethodHandle 方法句柄  可以将其看作是反射的另一种方式
+   * 该方法通过判断 Class类中 isRecord方法存在与否判断 jdk版本
+   * @return true, Class.isRecord()存在，jdk version > 14, false, jdk version < 14
+   */
   private static MethodHandle getIsRecordMethodHandle() {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
+    //MethodType表示一个方法类型的对象，每个MethodHandle都有一个MethodType实例，
+    // MethodType用来指明方法的返回类型和参数类型。
+    // 这里得到了一个方法的返回类型为boolean的MethodType。
     MethodType mt = MethodType.methodType(boolean.class);
     try {
       return lookup.findVirtual(Class.class, "isRecord", mt);

@@ -33,10 +33,11 @@ import org.w3c.dom.NodeList;
 public class XNode {
 
   private final Node node;
-  private final String name;
-  private final String body;
-  private final Properties attributes;
-  private final Properties variables;
+  private final String name;// xml标签名 如 <A src="blog-derby.properties">xxx</A> 则name=A
+  private final String body;// xml标签值 如 <A src="blog-derby.properties">xxx</A> 则body=xxx
+  private final Properties attributes;// xml属性值 如 <A src="blog-derby.properties">xxx</A>
+                                      // 则 key=src value=blog-derby.properties
+  private final Properties variables;  // 外部环境变量
   private final XPathParser xpathParser;
 
   public XNode(XPathParser xpathParser, Node node, Properties variables) {
@@ -325,6 +326,11 @@ public class XNode {
     }
   }
 
+  /**
+   * xml 节点属性占位符解析
+   * @param n
+   * @return
+   */
   private Properties parseAttributes(Node n) {
     Properties attributes = new Properties();
     NamedNodeMap attributeNodes = n.getAttributes();

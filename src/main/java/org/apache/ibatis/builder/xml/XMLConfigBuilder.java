@@ -48,13 +48,15 @@ import org.apache.ibatis.transaction.TransactionFactory;
 import org.apache.ibatis.type.JdbcType;
 
 /**
+ * mybatis xml 配置文件解析器
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */
 public class XMLConfigBuilder extends BaseBuilder {
 
   private boolean parsed;
-  private final XPathParser parser;
+  private final XPathParser parser;// mybatis xml 配置文件真正的解析器，用的是jdk自带的xml解析器而非第三方
+                                  // 比如dom4j，底层使用了xpath方式进行节点解析
   private String environment;
   private final ReflectorFactory localReflectorFactory = new DefaultReflectorFactory();
 
@@ -111,10 +113,19 @@ public class XMLConfigBuilder extends BaseBuilder {
     return configuration;
   }
 
+  /**
+   * 解析MapperConfig.xml, 节点解析顺序：
+   *   properties > settings > typeAliases > plugins > objectFactory > objectWrapperFactory >
+   *   reflectorFactory > environments > databaseIdProvider > typeHandlers > mappers
+   *   这些节点对应 mybatis-3-config.dtd的节点声明
+   *
+   * @param root  doc顶层节点
+   */
   private void parseConfiguration(XNode root) {
     try {
       // issue #117 read properties first
       propertiesElement(root.evalNode("properties"));
+      // 校验MapperConfig.xml中settings配置项是否正确，对应Configuration.class属性
       Properties settings = settingsAsProperties(root.evalNode("settings"));
       loadCustomVfs(settings);
       loadCustomLogImpl(settings);
@@ -141,6 +152,7 @@ public class XMLConfigBuilder extends BaseBuilder {
     Properties props = context.getChildrenAsProperties();
     // Check that all settings are known to the configuration class
     MetaClass metaConfig = MetaClass.forClass(Configuration.class, localReflectorFactory);
+    // 校验MapperConfig.xml中settings配置项是否正确，对应Configuration.class属性
     for (Object key : props.keySet()) {
       if (!metaConfig.hasSetter(String.valueOf(key))) {
         throw new BuilderException(
@@ -150,6 +162,11 @@ public class XMLConfigBuilder extends BaseBuilder {
     return props;
   }
 
+  /**
+   * 解析settings中 vfsImpl
+   * @param props  settings
+   * @throws ClassNotFoundException
+   */
   private void loadCustomVfs(Properties props) throws ClassNotFoundException {
     String value = props.getProperty("vfsImpl");
     if (value != null) {
@@ -164,6 +181,10 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * 解析settings中 logImpl 日志实现类
+   * @param props
+   */
   private void loadCustomLogImpl(Properties props) {
     Class<? extends Log> logImpl = resolveClass(props.getProperty("logImpl"));
     configuration.setLogImpl(logImpl);
@@ -246,6 +267,7 @@ public class XMLConfigBuilder extends BaseBuilder {
       } else if (url != null) {
         defaults.putAll(Resources.getUrlAsProperties(url));
       }
+      // 外部配置文件解析完更新内存中的配置变量
       Properties vars = configuration.getVariables();
       if (vars != null) {
         defaults.putAll(vars);

@@ -28,6 +28,7 @@ import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 
 /**
+ * 应用内类文件访问工具类基类
  * Provides a very simple API for accessing resources within an application server.
  *
  * @author Ben Gunter

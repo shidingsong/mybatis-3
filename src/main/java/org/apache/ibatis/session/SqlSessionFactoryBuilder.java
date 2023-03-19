@@ -26,7 +26,11 @@ import org.apache.ibatis.executor.ErrorContext;
 import org.apache.ibatis.session.defaults.DefaultSqlSessionFactory;
 
 /**
- * Builds {@link SqlSession} instances.
+ * Builds {@link SqlSession} instances.  构建 SqlSession 实例
+ * 提供了根据字节流、字符流以及直接使用org.apache.ibatis.session.Configuration配置类
+ * 三种途径的读取配置信息方式，无论是字符流还是字节流方式，首先都是将XML配置文件构建为Configuration配置类，
+ * 然后将Configuration设置到SqlSessionFactory默认实现DefaultSqlSessionFactory的configurationz字段并返回。
+ * 所以，它本身很简单，解析配置文件的关键逻辑都委托给XMLConfigBuilder了
  *
  * @author Clinton Begin
  */

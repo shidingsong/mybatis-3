@@ -86,6 +86,13 @@ public class TypeParameterResolver {
     return result;
   }
 
+  /**
+   *
+   * @param type  泛型 class  method.getGenericReturnType()
+   * @param srcType  方法类所属class
+   * @param declaringClass 反射得到方法类所属class  method.getDeclaringClass()
+   * @return
+   */
   private static Type resolveType(Type type, Type srcType, Class<?> declaringClass) {
     if (type instanceof TypeVariable) {
       return resolveTypeVar((TypeVariable<?>) type, srcType, declaringClass);

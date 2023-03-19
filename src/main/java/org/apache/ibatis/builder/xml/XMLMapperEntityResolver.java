@@ -26,6 +26,8 @@ import org.xml.sax.SAXException;
 
 /**
  * Offline entity resolver for the MyBatis DTDs.
+ * entityResolver比较好理解，跟Spring的XML标签解析器一样，有默认的解析器，也有自定义的比如tx，dubbo等，
+ * 主要使用了策略模式，在这里mybatis硬编码为了XMLMapperEntityResolver。
  *
  * @author Clinton Begin
  * @author Eduardo Macarron
@@ -42,6 +44,23 @@ public class XMLMapperEntityResolver implements EntityResolver {
 
   /**
    * Converts a public DTD into a local one.
+   *  将公共的DTD转换为本地模式
+   *
+   *  mybatis解析的时候，引用了本地的DTD文件，和本类在同一个package下，
+   *  其中的ibatis-3-config.dtd应该主要是用于兼容用途。
+   *  在其中getInputSource(MYBATIS_CONFIG_DTD, publicId, systemId)的调用里面有两个参数
+   *  publicId（公共标识符）和systemId（系统标示符），他们是XML 1.0规范的一部分。他们的使用如下：
+   *
+   *    <?xml version="1.0"?>
+   *    <!DOCTYPE greeting SYSTEM "hello.dtd">
+   *    <greeting>Hello, world!</greeting>
+   *
+   *  系统标识符 “hello.dtd” 给出了此文件的 DTD 的地址（一个 URI 引用）。
+   *  在mybatis中，这里指定的是mybatis-3-config.dtd和ibatis-3-config.dtd。
+   *  publicId则一般从XML文档的DOCTYPE中获取，如下：
+   *
+   *    <!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+   *     "http://mybatis.org/dtd/mybatis-3-config.dtd">
    *
    * @param publicId
    *          The public id that is what comes after "PUBLIC"

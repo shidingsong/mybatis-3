@@ -47,9 +47,9 @@ import org.xml.sax.SAXParseException;
 public class XPathParser {
 
   private final Document document;
-  private boolean validation;
-  private EntityResolver entityResolver;
-  private Properties variables;
+  private boolean validation;// 是否进行DTD 校验
+  private EntityResolver entityResolver;// XML实体节点解析器
+  private Properties variables; // settings下的properties属性
   private XPath xpath;
 
   public XPathParser(String xml) {
@@ -211,6 +211,10 @@ public class XPathParser {
   }
 
   public XNode evalNode(Object root, String expression) {
+    //XPathConstants.NODE它主要适用于当XPath表达式的结果有且只有一个节点。
+    // 如果XPath表达式返回了多个节点，却指定类型为XPathConstants.NODE，
+    // 则evaluate()方法将按照文档顺序返回第一个节点。
+    // 如果XPath表达式的结果为一个空集，却指定类型为XPathConstants.NODE，则evaluate( )方法将返回null。
     Node node = (Node) evaluate(expression, root, XPathConstants.NODE);
     if (node == null) {
       return null;
@@ -232,14 +236,17 @@ public class XPathParser {
       DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
       factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
       factory.setValidating(validation);
-
+      //设置由本工厂创建的解析器是否支持XML命名空间 TODO 什么是XML命名空间
       factory.setNamespaceAware(false);
       factory.setIgnoringComments(true);
       factory.setIgnoringElementContentWhitespace(false);
+      //设置是否将CDATA节点转换为Text节点
       factory.setCoalescing(false);
+      //设置是否展开实体引用节点，这里应该是sql片段引用的关键
       factory.setExpandEntityReferences(true);
 
       DocumentBuilder builder = factory.newDocumentBuilder();
+      //设置解析mybatis xml文档节点的解析器,也就是上面的XMLMapperEntityResolver
       builder.setEntityResolver(entityResolver);
       builder.setErrorHandler(new ErrorHandler() {
         @Override
@@ -256,7 +263,7 @@ public class XPathParser {
         public void warning(SAXParseException exception) throws SAXException {
           // NOP
         }
-      });
+      });//主要是根据mybatis自身需要创建一个文档解析器，然后调用parse将输入input source解析为DOM XML文档并返回。
       return builder.parse(inputSource);
     } catch (Exception e) {
       throw new BuilderException("Error creating document instance.  Cause: " + e, e);

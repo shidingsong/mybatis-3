@@ -20,6 +20,8 @@ import java.util.Locale;
 import org.apache.ibatis.reflection.ReflectionException;
 
 /**
+ * getter、setter、isXXX方法工具类
+ *
  * @author Clinton Begin
  */
 public final class PropertyNamer {
@@ -38,6 +40,7 @@ public final class PropertyNamer {
           "Error parsing property name '" + name + "'.  Didn't start with 'is', 'get' or 'set'.");
     }
 
+    // 驼峰命名
     if (name.length() == 1 || name.length() > 1 && !Character.isUpperCase(name.charAt(1))) {
       name = name.substring(0, 1).toLowerCase(Locale.ENGLISH) + name.substring(1);
     }
