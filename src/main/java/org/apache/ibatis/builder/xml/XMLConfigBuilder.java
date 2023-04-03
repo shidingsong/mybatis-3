@@ -130,8 +130,8 @@ public class XMLConfigBuilder extends BaseBuilder {
       loadCustomVfs(settings);
       loadCustomLogImpl(settings);
       typeAliasesElement(root.evalNode("typeAliases"));
-      pluginElement(root.evalNode("plugins"));
-      objectFactoryElement(root.evalNode("objectFactory"));
+      pluginElement(root.evalNode("plugins"));// 解析拦截器插件
+      objectFactoryElement(root.evalNode("objectFactory"));// 对象创建工厂
       objectWrapperFactoryElement(root.evalNode("objectWrapperFactory"));
       reflectorFactoryElement(root.evalNode("reflectorFactory"));
       settingsElement(settings);
@@ -190,10 +190,17 @@ public class XMLConfigBuilder extends BaseBuilder {
     configuration.setLogImpl(logImpl);
   }
 
+  /**
+   * <typeAliases>
+   *     <package name="org.apache.ibatis.domain" />
+   *     <typeAlias alias="Author" type="org.apache.ibatis.domain.blog.Author"/>
+   * </typeAliases>
+   * @param parent
+   */
   private void typeAliasesElement(XNode parent) {
     if (parent != null) {
       for (XNode child : parent.getChildren()) {
-        if ("package".equals(child.getName())) {
+        if ("package".equals(child.getName())) {// 包扫描实体类注册
           String typeAliasPackage = child.getStringAttribute("name");
           configuration.getTypeAliasRegistry().registerAliases(typeAliasPackage);
         } else {
@@ -214,6 +221,18 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * 解析拦截器插件
+   *
+   * <plugins>
+   *     <plugin interceptor="org.apache.ibatis.builder.ExamplePlugin">
+   *       <property name="pluginProperty" value="100"/>
+   *     </plugin>
+   *   </plugins>
+   *
+   * @param parent
+   * @throws Exception
+   */
   private void pluginElement(XNode parent) throws Exception {
     if (parent != null) {
       for (XNode child : parent.getChildren()) {
@@ -227,6 +246,15 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   *   对象创建工厂
+   *   <objectFactory type="org.apache.ibatis.builder.ExampleObjectFactory">
+   *     <property name="objectFactoryProperty" value="100"/>
+   *   </objectFactory>
+   *
+   * @param context
+   * @throws Exception
+   */
   private void objectFactoryElement(XNode context) throws Exception {
     if (context != null) {
       String type = context.getStringAttribute("type");
@@ -237,6 +265,13 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   *
+   * <objectWrapperFactory type="org.apache.ibatis.builder.CustomObjectWrapperFactory" />
+   *
+   * @param context
+   * @throws Exception
+   */
   private void objectWrapperFactoryElement(XNode context) throws Exception {
     if (context != null) {
       String type = context.getStringAttribute("type");

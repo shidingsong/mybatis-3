@@ -33,6 +33,7 @@ import org.apache.ibatis.io.ResolverUtil;
 import org.apache.ibatis.io.Resources;
 
 /**
+ * 常用 class类 别名注册
  * @author Clinton Begin
  */
 public class TypeAliasRegistry {
@@ -133,6 +134,11 @@ public class TypeAliasRegistry {
     registerAliases(packageName, Object.class);
   }
 
+  /**
+   * class注册别名(小写)，支持包路径扫描
+   * @param packageName  包路径
+   * @param superType  父类，一般固定 Object.class
+   */
   public void registerAliases(String packageName, Class<?> superType) {
     ResolverUtil<Class<?>> resolverUtil = new ResolverUtil<>();
     resolverUtil.find(new ResolverUtil.IsA(superType), packageName);
@@ -140,12 +146,17 @@ public class TypeAliasRegistry {
     for (Class<?> type : typeSet) {
       // Ignore inner classes and interfaces (including package-info.java)
       // Skip also inner classes. See issue #6
+      // 非匿名类、非接口、非内部类
       if (!type.isAnonymousClass() && !type.isInterface() && !type.isMemberClass()) {
         registerAlias(type);
       }
     }
   }
 
+  /**
+   * class注册别名(小写), 优先使用class类上的注解 Alias 中value值
+   * @param type  Class
+   */
   public void registerAlias(Class<?> type) {
     String alias = type.getSimpleName();
     Alias aliasAnnotation = type.getAnnotation(Alias.class);
@@ -155,6 +166,11 @@ public class TypeAliasRegistry {
     registerAlias(alias, type);
   }
 
+  /**
+   * class注册别名(小写)
+   * @param alias  别名
+   * @param value  class类
+   */
   public void registerAlias(String alias, Class<?> value) {
     if (alias == null) {
       throw new TypeException("The parameter alias cannot be null");

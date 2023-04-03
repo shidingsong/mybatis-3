@@ -28,14 +28,16 @@ import org.apache.ibatis.reflection.wrapper.ObjectWrapper;
 import org.apache.ibatis.reflection.wrapper.ObjectWrapperFactory;
 
 /**
+ * 元信息对象
+ *
  * @author Clinton Begin
  */
 public class MetaObject {
 
-  private final Object originalObject;
-  private final ObjectWrapper objectWrapper;
-  private final ObjectFactory objectFactory;
-  private final ObjectWrapperFactory objectWrapperFactory;
+  private final Object originalObject;// 原始对象
+  private final ObjectWrapper objectWrapper;// 对象包装类，含对象元信息
+  private final ObjectFactory objectFactory;// 对象创建工厂
+  private final ObjectWrapperFactory objectWrapperFactory;// 对象包装工厂
   private final ReflectorFactory reflectorFactory;
 
   private MetaObject(Object object, ObjectFactory objectFactory, ObjectWrapperFactory objectWrapperFactory,

@@ -65,6 +65,9 @@ public class Reflector {
   private final Map<String, Class<?>> getTypes = new HashMap<>();// (属性名,出参类型)
   private Constructor<?> defaultConstructor;// class类中无参构造器
 
+  /**
+   * 类 get、set方法对应属性容器 <大写属性名, 真实属性名>
+   */
   private final Map<String, String> caseInsensitivePropertyMap = new HashMap<>();
 
   public Reflector(Class<?> clazz) {
@@ -101,13 +104,81 @@ public class Reflector {
         .ifPresent(constructor -> this.defaultConstructor = constructor);
   }
 
+  //
   private void addGetMethods(Method[] methods) {
-    Map<String, List<Method>> conflictingGetters = new HashMap<>();
+    Map<String, List<Method>> conflictingGetters = new HashMap<>();// (属性名,List<Method>)
+    // 遍历methods 过滤出get方法 添加到 conflictingGetters
     Arrays.stream(methods).filter(m -> m.getParameterTypes().length == 0 && PropertyNamer.isGetter(m.getName()))
         .forEach(m -> addMethodConflict(conflictingGetters, PropertyNamer.methodToProperty(m.getName()), m));
     resolveGetterConflicts(conflictingGetters);
   }
 
+  /**
+   * 父子继承关系测试
+   *
+   * class A{
+   * }
+   * class B extends A{
+   * }
+   * class C extends B{
+   * }
+   * public class test {
+   *     public static void main(String[] args) {
+   *         A a = new A();
+   *         B b = new B();
+   *         B b1 = new B();
+   *         C c = new C();
+   *         System.out.println(a.getClass().isAssignableFrom(a.getClass())); // true
+   *         System.out.println(a.getClass().isAssignableFrom(b.getClass())); // true
+   *         System.out.println(a.getClass().isAssignableFrom(c.getClass())); // true
+   *         System.out.println(b1.getClass().isAssignableFrom(b.getClass())); // true
+   *
+   *         System.out.println(b.getClass().isAssignableFrom(c.getClass())); // true
+   *
+   *         System.out.println("=====================================");
+   *         System.out.println(A.class.isAssignableFrom(a.getClass())); // true
+   *         System.out.println(A.class.isAssignableFrom(b.getClass())); // true
+   *         System.out.println(A.class.isAssignableFrom(c.getClass())); // true
+   *
+   *         System.out.println("=====================================");
+   *         System.out.println(Object.class.isAssignableFrom(a.getClass())); // true
+   *         System.out.println(Object.class.isAssignableFrom(String.class)); // true
+   *         System.out.println(String.class.isAssignableFrom(Object.class)); // false
+   *     }
+   * }
+   *
+   * 接口的实现关系测试
+   *
+   * interface InterfaceA{
+   * }
+   *
+   * class ClassB implements InterfaceA{
+   *
+   * }
+   * class ClassC implements InterfaceA{
+   *
+   * }
+   * class ClassD extends ClassB{
+   *
+   * }
+   * public class InterfaceTest {
+   *     public static void main(String[] args) {
+   *         System.out.println(InterfaceA.class.isAssignableFrom(InterfaceA.class)); // true
+   *         System.out.println(InterfaceA.class.isAssignableFrom(ClassB.class)); // true
+   *         System.out.println(InterfaceA.class.isAssignableFrom(ClassC.class)); // true
+   *         System.out.println(ClassB.class.isAssignableFrom(ClassC.class)); // false
+   *         System.out.println("============================================");
+   *
+   *         System.out.println(ClassB.class.isAssignableFrom(ClassD.class)); // true
+   *         System.out.println(InterfaceA.class.isAssignableFrom(ClassD.class)); // true
+   *     }
+   * }
+   *
+   * isAssignableFrom是用来判断子类和父类的关系的，或者接口的实现类和接口的关系的，
+   * 默认所有的类的终极父类都是Object。
+   * 如果A.isAssignableFrom(B)结果是true，证明B可以转换成为A,也就是A可以由B转换而来。
+   * @param conflictingGetters conflictingGetters
+   */
   private void resolveGetterConflicts(Map<String, List<Method>> conflictingGetters) {
     for (Entry<String, List<Method>> entry : conflictingGetters.entrySet()) {
       Method winner = null;
@@ -122,15 +193,15 @@ public class Reflector {
         Class<?> candidateType = candidate.getReturnType();
         if (candidateType.equals(winnerType)) {
           if (!boolean.class.equals(candidateType)) {
-            isAmbiguous = true;
+            isAmbiguous = true;// get方法无参且返回值类型相同非Boolean，则方法重写出错
             break;
           }
           if (candidate.getName().startsWith("is")) {
             winner = candidate;
           }
-        } else if (candidateType.isAssignableFrom(winnerType)) {
+        } else if (candidateType.isAssignableFrom(winnerType)) {// winnerType能转成 candidateType 即winnerType继承或实现candidateType
           // OK getter type is descendant
-        } else if (winnerType.isAssignableFrom(candidateType)) {
+        } else if (winnerType.isAssignableFrom(candidateType)) {// candidateType能转成 winnerType
           winner = candidate;
         } else {
           isAmbiguous = true;
@@ -141,6 +212,12 @@ public class Reflector {
     }
   }
 
+  /**
+   * get方法 封装成 MethodInvoker反射对象 添加到 getMethods，及返回值类型添加到 getTypes
+   * @param name 属性
+   * @param method method
+   * @param isAmbiguous 方法返回类型是否有 歧义
+   */
   private void addGetMethod(String name, Method method, boolean isAmbiguous) {
     MethodInvoker invoker = isAmbiguous ? new AmbiguousMethodInvoker(method, MessageFormat.format(
         "Illegal overloaded getter method with ambiguous type for property ''{0}'' in class ''{1}''. This breaks the JavaBeans specification and can cause unpredictable results.",
@@ -157,6 +234,12 @@ public class Reflector {
     resolveSetterConflicts(conflictingSetters);
   }
 
+  /**
+   * 属性对应method添加到  map容器
+   * @param conflictingMethods  map容器
+   * @param name  属性
+   * @param method 属性对应method
+   */
   private void addMethodConflict(Map<String, List<Method>> conflictingMethods, String name, Method method) {
     if (isValidPropertyName(name)) {
       List<Method> list = MapUtil.computeIfAbsent(conflictingMethods, name, k -> new ArrayList<>());
@@ -169,10 +252,12 @@ public class Reflector {
       String propName = entry.getKey();
       List<Method> setters = entry.getValue();
       Class<?> getterType = getTypes.get(propName);
+      // 属性对应get方法是否有歧义
       boolean isGetterAmbiguous = getMethods.get(propName) instanceof AmbiguousMethodInvoker;
       boolean isSetterAmbiguous = false;
       Method match = null;
       for (Method setter : setters) {
+        // 属性对应get方法是无歧义 且set方法入参类型 与 get方法返回值类型一致
         if (!isGetterAmbiguous && setter.getParameterTypes()[0].equals(getterType)) {
           // should be the best match
           match = setter;

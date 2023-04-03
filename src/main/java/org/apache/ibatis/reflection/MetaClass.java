@@ -27,6 +27,8 @@ import org.apache.ibatis.reflection.invoker.MethodInvoker;
 import org.apache.ibatis.reflection.property.PropertyTokenizer;
 
 /**
+ * class 类元信息 主要依赖 Reflector反射工具类
+ *
  * @author Clinton Begin
  */
 public class MetaClass {

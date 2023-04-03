@@ -27,12 +27,13 @@ import org.apache.ibatis.reflection.ExceptionUtil;
 import org.apache.ibatis.util.MapUtil;
 
 /**
+ * 动态代理
  * @author Clinton Begin
  */
 public class Plugin implements InvocationHandler {
 
-  private final Object target;
-  private final Interceptor interceptor;
+  private final Object target;//要实现代理的对象
+  private final Interceptor interceptor;// 拦截器
   private final Map<Class<?>, Set<Method>> signatureMap;
 
   private Plugin(Object target, Interceptor interceptor, Map<Class<?>, Set<Method>> signatureMap) {
@@ -64,6 +65,11 @@ public class Plugin implements InvocationHandler {
     }
   }
 
+  /**
+   * 解析 interceptor 拦截器 拦截的class方法信息
+   * @param interceptor 拦截器
+   * @return signatureMap
+   */
   private static Map<Class<?>, Set<Method>> getSignatureMap(Interceptor interceptor) {
     Intercepts interceptsAnnotation = interceptor.getClass().getAnnotation(Intercepts.class);
     // issue #251
