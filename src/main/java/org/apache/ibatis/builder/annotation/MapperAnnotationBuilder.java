@@ -103,7 +103,7 @@ public class MapperAnnotationBuilder {
 
   private final Configuration configuration;
   private final MapperBuilderAssistant assistant;
-  private final Class<?> type;
+  private final Class<?> type;// mapper 接口
 
   public MapperAnnotationBuilder(Configuration configuration, Class<?> type) {
     String resource = type.getName().replace('.', '/') + ".java (best guess)";
@@ -112,7 +112,7 @@ public class MapperAnnotationBuilder {
     this.type = type;
   }
 
-  public void parse() {
+  public void parse() {// 根据package路径扫描mapper接口
     String resource = type.toString();
     if (!configuration.isResourceLoaded(resource)) {
       loadXmlResource();
@@ -163,6 +163,12 @@ public class MapperAnnotationBuilder {
     // to prevent loading again a resource twice
     // this flag is set at XMLMapperBuilder#bindMapperForNamespace
     if (!configuration.isResourceLoaded("namespace:" + type.getName())) {
+      // 根据package自动搜索加载的时候，约定俗称从classpath下加载接口的完整名，
+      // 比如org.mybatis.example.mapper.BlogMapper，就加载org/mybatis/example/mapper/BlogMapper.xml。
+      // 对于从package和class进来的mapper，如果找不到对应的文件，就忽略，
+      // 因为这种情况下是允许SQL语句作为注解打在接口上的，所以xml文件不是必须的，
+      // 而对于直接声明的xml mapper文件，如果找不到的话会抛出IOException异常而终止，
+      // 这在使用注解模式的时候需要注意。加载到对应的mapper.xml文件后，调用XMLMapperBuilder进行解析
       String xmlResource = type.getName().replace('.', '/') + ".xml";
       // #1347
       InputStream inputStream = type.getResourceAsStream("/" + xmlResource);
@@ -175,6 +181,8 @@ public class MapperAnnotationBuilder {
         }
       }
       if (inputStream != null) {
+        // configuration.getSqlFragments()，这就是我们在mapper文件中经常使用的可以被包含在其他语句中的SQL片段，
+        // 但是我们并没有初始化过，所以很有可能它是在解析过程中动态添加的
         XMLMapperBuilder xmlParser = new XMLMapperBuilder(inputStream, assistant.getConfiguration(), xmlResource,
             configuration.getSqlFragments(), type.getName());
         xmlParser.parse();

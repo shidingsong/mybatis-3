@@ -101,7 +101,7 @@ import org.apache.ibatis.type.TypeHandlerRegistry;
  */
 public class Configuration {
 
-  protected Environment environment;
+  protected Environment environment;// 数据源 、事务管理器
 
   protected boolean safeRowBoundsEnabled;
   protected boolean safeResultHandlerEnabled = true;
@@ -166,17 +166,35 @@ public class Configuration {
   protected final Map<String, ParameterMap> parameterMaps = new StrictMap<>("Parameter Maps collection");
   protected final Map<String, KeyGenerator> keyGenerators = new StrictMap<>("Key Generators collection");
 
-  protected final Set<String> loadedResources = new HashSet<>();
+  protected final Set<String> loadedResources = new HashSet<>();// 存储已加载的mapper xml文件路径
   protected final Map<String, XNode> sqlFragments = new StrictMap<>("XML fragments parsed from previous mappers");
 
   protected final Collection<XMLStatementBuilder> incompleteStatements = new LinkedList<>();
+  /*
+   * XMLMapperBuilder.configuration中有很多的incompleteXXX，
+   *     这种设计模式类似于JVM GC中的mark and sweep，标记、然后处理。
+   *     所以当捕获到IncompleteElementException异常时，没有终止执行，
+   *     而是将指向的缓存不存在的cacheRefResolver添加到configuration.incompleteCacheRef中。
+   */
   protected final Collection<CacheRefResolver> incompleteCacheRefs = new LinkedList<>();
+
   protected final Collection<ResultMapResolver> incompleteResultMaps = new LinkedList<>();
   protected final Collection<MethodResolver> incompleteMethods = new LinkedList<>();
 
   /*
    * A map holds cache-ref relationship. The key is the namespace that references a cache bound to another namespace and
    * the value is the namespace which the actual cache is bound to.
+   *
+   * <mapper namespace="org.apache.ibatis.submitted.resolution.cacherefs.MapperA">
+   *    <cache-ref namespace="org.apache.ibatis.submitted.resolution.cacherefs.MapperB" />
+   *    <select id="getUser"
+   *      resultType="org.apache.ibatis.submitted.resolution.User">
+   *      select id, name
+   *      from users where id = #{id}
+   *    </select>
+   *  </mapper>
+   *
+   *  cacheRefMap：<k, v> -> k=mapper namespace , v= cache-ref namespace
    */
   protected final Map<String, String> cacheRefMap = new HashMap<>();
 

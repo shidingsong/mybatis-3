@@ -28,7 +28,8 @@ import org.apache.ibatis.reflection.wrapper.ObjectWrapper;
 import org.apache.ibatis.reflection.wrapper.ObjectWrapperFactory;
 
 /**
- * 元信息对象
+ * 元信息对象，即只要拿到指定对象就可以操作其属性，不需要通过对象调用对象的方法
+ * 原理还是通过反射实现
  *
  * @author Clinton Begin
  */

@@ -114,7 +114,8 @@ public class XMLConfigBuilder extends BaseBuilder {
   }
 
   /**
-   * 解析MapperConfig.xml, 节点解析顺序：
+   * 解析MapperConfig.xml, 具体实例在CustomizedSettingsMapperConfig.xml
+   *   节点解析顺序：
    *   properties > settings > typeAliases > plugins > objectFactory > objectWrapperFactory >
    *   reflectorFactory > environments > databaseIdProvider > typeHandlers > mappers
    *   这些节点对应 mybatis-3-config.dtd的节点声明
@@ -132,13 +133,14 @@ public class XMLConfigBuilder extends BaseBuilder {
       typeAliasesElement(root.evalNode("typeAliases"));
       pluginElement(root.evalNode("plugins"));// 解析拦截器插件
       objectFactoryElement(root.evalNode("objectFactory"));// 对象创建工厂
+      // 对象包装器，可以通过对象直接对其属性直接操作不需要调用对象中的方法
       objectWrapperFactoryElement(root.evalNode("objectWrapperFactory"));
-      reflectorFactoryElement(root.evalNode("reflectorFactory"));
+      reflectorFactoryElement(root.evalNode("reflectorFactory"));// 对象反射器工厂
       settingsElement(settings);
       // read it after objectFactory and objectWrapperFactory issue #631
-      environmentsElement(root.evalNode("environments"));
-      databaseIdProviderElement(root.evalNode("databaseIdProvider"));
-      typeHandlerElement(root.evalNode("typeHandlers"));
+      environmentsElement(root.evalNode("environments"));// 数据源、事务管理器
+      databaseIdProviderElement(root.evalNode("databaseIdProvider"));// 数据库厂商
+      typeHandlerElement(root.evalNode("typeHandlers"));// 查询结果类型处理器
       mapperElement(root.evalNode("mappers"));
     } catch (Exception e) {
       throw new BuilderException("Error parsing SQL Mapper Configuration. Cause: " + e, e);
@@ -183,7 +185,7 @@ public class XMLConfigBuilder extends BaseBuilder {
 
   /**
    * 解析settings中 logImpl 日志实现类
-   * @param props
+   * @param props props
    */
   private void loadCustomLogImpl(Properties props) {
     Class<? extends Log> logImpl = resolveClass(props.getProperty("logImpl"));
@@ -191,11 +193,14 @@ public class XMLConfigBuilder extends BaseBuilder {
   }
 
   /**
-   * <typeAliases>
-   *     <package name="org.apache.ibatis.domain" />
-   *     <typeAlias alias="Author" type="org.apache.ibatis.domain.blog.Author"/>
-   * </typeAliases>
-   * @param parent
+   *
+   *   <typeAliases>
+   *     <typeAlias alias="BlogAuthor" type="org.apache.ibatis.domain.blog.Author"/>
+   *     <typeAlias type="org.apache.ibatis.domain.blog.Blog"/>
+   *     <typeAlias type="org.apache.ibatis.domain.blog.Post"/>
+   *     <package name="org.apache.ibatis.domain.jpetstore"/>
+   *   </typeAliases>
+   * @param parent parent
    */
   private void typeAliasesElement(XNode parent) {
     if (parent != null) {
@@ -230,8 +235,8 @@ public class XMLConfigBuilder extends BaseBuilder {
    *     </plugin>
    *   </plugins>
    *
-   * @param parent
-   * @throws Exception
+   * @param parent parent
+   * @throws Exception Exception
    */
   private void pluginElement(XNode parent) throws Exception {
     if (parent != null) {
@@ -266,7 +271,7 @@ public class XMLConfigBuilder extends BaseBuilder {
   }
 
   /**
-   *
+   * 对象包装器，可以通过对象直接对其属性直接操作不需要调用对象中的方法
    * <objectWrapperFactory type="org.apache.ibatis.builder.CustomObjectWrapperFactory" />
    *
    * @param context
@@ -280,6 +285,13 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   *
+   * <reflectorFactory type="org.apache.ibatis.builder.CustomReflectorFactory"/>
+   *
+   * @param context context
+   * @throws Exception Exception
+   */
   private void reflectorFactoryElement(XNode context) throws Exception {
     if (context != null) {
       String type = context.getStringAttribute("type");
@@ -288,6 +300,16 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   *
+   *   <properties resource="org/apache/ibatis/builder/jdbc.properties">
+   *     <property name="prop1" value="aaaa"/>
+   *     <property name="jdbcTypeForNull" value="NULL" />
+   *   </properties>
+   *
+   * @param context context
+   * @throws Exception Exception
+   */
   private void propertiesElement(XNode context) throws Exception {
     if (context != null) {
       Properties defaults = context.getChildrenAsProperties();
@@ -349,6 +371,25 @@ public class XMLConfigBuilder extends BaseBuilder {
     configuration.setNullableOnForEach(booleanValueOf(props.getProperty("nullableOnForEach"), false));
   }
 
+  /**
+   *
+   *   <environments default="development">
+   *     <environment id="development">
+   *       <transactionManager type="JDBC">
+   *         <property name="" value=""/>
+   *       </transactionManager>
+   *       <dataSource type="UNPOOLED">
+   *         <property name="driver" value="${driver}"/>
+   *         <property name="url" value="${url}"/>
+   *         <property name="username" value="${username}"/>
+   *         <property name="password" value="${password}"/>
+   *       </dataSource>
+   *     </environment>
+   *   </environments>
+   *
+   * @param context context
+   * @throws Exception Exception
+   */
   private void environmentsElement(XNode context) throws Exception {
     if (context != null) {
       if (environment == null) {
@@ -369,6 +410,15 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   *   数据库厂商
+   *   <databaseIdProvider type="DB_VENDOR">
+   *     <property name="Apache Derby" value="derby"/>
+   *   </databaseIdProvider>
+   *
+   * @param context context
+   * @throws Exception Exception
+   */
   private void databaseIdProviderElement(XNode context) throws Exception {
     DatabaseIdProvider databaseIdProvider = null;
     if (context != null) {
@@ -410,6 +460,17 @@ public class XMLConfigBuilder extends BaseBuilder {
     throw new BuilderException("Environment declaration requires a DataSourceFactory.");
   }
 
+  /**
+   *   加载类型解析器，优先使用包路径解析
+   *   <typeHandlers>
+   *     <typeHandler javaType="String" handler="org.apache.ibatis.builder.CustomStringTypeHandler"/>
+   *     <typeHandler javaType="String" jdbcType="VARCHAR" handler="org.apache.ibatis.builder.CustomStringTypeHandler"/>
+   *     <typeHandler handler="org.apache.ibatis.builder.CustomLongTypeHandler"/>
+   *     <package name="org.apache.ibatis.builder.typehandler"/>
+   *   </typeHandlers>
+   *
+   * @param parent parent
+   */
   private void typeHandlerElement(XNode parent) {
     if (parent != null) {
       for (XNode child : parent.getChildren()) {
@@ -437,6 +498,19 @@ public class XMLConfigBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * 加载mapper接口和xml，优先使用包路径解析
+   *
+   * <mappers>
+   *     <mapper resource="org/apache/ibatis/builder/BlogMapper.xml"/>
+   *     <mapper url="file:./src/test/resources/org/apache/ibatis/builder/NestedBlogMapper.xml"/>
+   *     <mapper class="org.apache.ibatis.builder.CachedAuthorMapper"/>
+   *     <package name="org.apache.ibatis.builder.mapper"/>
+   *   </mappers>
+   *
+   * @param parent parent
+   * @throws Exception Exception
+   */
   private void mapperElement(XNode parent) throws Exception {
     if (parent != null) {
       for (XNode child : parent.getChildren()) {

@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.ibatis.util.MapUtil;
 
 /**
- *
+ * 反射对象
  */
 public class DefaultReflectorFactory implements ReflectorFactory {
   /**
