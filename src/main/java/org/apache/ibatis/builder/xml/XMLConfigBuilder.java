@@ -104,7 +104,7 @@ public class XMLConfigBuilder extends BaseBuilder {
     this.parser = parser;
   }
 
-  public Configuration parse() {
+  public Configuration parse() {// 只有SqlSessionFactoryBuilder的build方法调用
     if (parsed) {
       throw new BuilderException("Each XMLConfigBuilder can only be used once.");
     }

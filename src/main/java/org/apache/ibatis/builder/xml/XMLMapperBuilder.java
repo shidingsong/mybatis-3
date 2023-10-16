@@ -223,7 +223,7 @@ public class XMLMapperBuilder extends BaseBuilder {
       CacheRefResolver cacheRefResolver = new CacheRefResolver(builderAssistant,
           context.getStringAttribute("namespace"));
       try {
-        cacheRefResolver.resolveCacheRef();
+        cacheRefResolver.resolveCacheRef();// 第一次执行缓存还不存在
       } catch (IncompleteElementException e) {
         configuration.addIncompleteCacheRef(cacheRefResolver);
       }

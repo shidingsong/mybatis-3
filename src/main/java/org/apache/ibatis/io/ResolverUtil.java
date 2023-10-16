@@ -50,6 +50,8 @@ import org.apache.ibatis.logging.LogFactory;
  * Collection&lt;ActionBean&gt; beans = resolver.getClasses();
  * </pre>
  *
+ * 主要用于查找包路径下 指定class类的子类或标记了指定注解的类
+ *
  * @author Tim Fennell
  *
  * @param <T>
@@ -102,6 +104,7 @@ public class ResolverUtil<T> {
     /** Returns true if type is assignable to the parent type supplied in the constructor. */
     @Override
     public boolean matches(Class<?> type) {
+      // 如果A.isAssignableFrom(B)结果是true，证明B可以转换成为A,也就是A可以由B转换而来。
       return type != null && parent.isAssignableFrom(type);
     }
 
