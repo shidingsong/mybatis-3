@@ -1,0 +1,133 @@
+mybatis笔记
+
+1、加载配置文件并解析，由XMLConfigBuilder配置文件解析器负责，并按照特定顺序执行解析，
+节点解析顺序： 
+properties > settings > typeAliases > plugins > objectFactory > objectWrapperFactory >
+reflectorFactory > environments > databaseIdProvider > typeHandlers > mappers
+
+重点说明mappers的加载解析，具体配置如下：
+<mappers>
+   <mapper resource="org/apache/ibatis/builder/BlogMapper.xml"/>
+   <mapper url="file:./src/test/resources/org/apache/ibatis/builder/NestedBlogMapper.xml"/>
+   <mapper class="org.apache.ibatis.builder.CachedAuthorMapper"/>
+   <package name="org.apache.ibatis.builder.mapper"/>
+</mappers>
+
+对应源码为 XMLConfigBuilder类中方法 mapperElement，优先使用包package路径解析，
+约定俗成从classpath下加载接口的完整名，
+比如org.mybatis.example.mapper.BlogMapper，就加载org/mybatis/example/mapper/BlogMapper.xml。
+对于从package和class进来的mapper，如果找不到对应的文件，就忽略，因为这种情况下是允许SQL语句作为注解打在接口上的，所以xml文件不是必须的，而对于直接声明的xml mapper文件，如果找不到的话会抛出IOException异常而终止。
+所以无论配置中的资源地址是包路径还是mapper interface类全路径类名还是xml全路径，
+最后都是先解析mapper interface类对应的xml文件，对应源码为 XMLMapperBuilder类中方法 parse，
+
+
+
+
+
+
+
+
+
+
+
+
+配置文件文件样例如下：
+
+<!DOCTYPE configuration
+    PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+
+  <properties resource="org/apache/ibatis/builder/jdbc.properties">
+    <property name="prop1" value="aaaa"/>
+    <property name="jdbcTypeForNull" value="NULL" />
+  </properties>
+
+  <settings>
+    <setting name="autoMappingBehavior" value="NONE"/>
+    <setting name="autoMappingUnknownColumnBehavior" value="WARNING"/>
+    <setting name="cacheEnabled" value="false"/>
+    <setting name="proxyFactory" value="CGLIB"/>
+    <setting name="lazyLoadingEnabled" value="true"/>
+    <setting name="aggressiveLazyLoading" value="true"/>
+    <setting name="multipleResultSetsEnabled" value="false"/>
+    <setting name="useColumnLabel" value="false"/>
+    <setting name="useGeneratedKeys" value="true"/>
+    <setting name="defaultExecutorType" value="BATCH"/>
+    <setting name="defaultStatementTimeout" value="10"/>
+    <setting name="defaultFetchSize" value="100"/>
+    <setting name="defaultResultSetType" value="SCROLL_INSENSITIVE"/>
+    <setting name="mapUnderscoreToCamelCase" value="true"/>
+    <setting name="safeRowBoundsEnabled" value="true"/>
+    <setting name="localCacheScope" value="STATEMENT"/>
+    <setting name="jdbcTypeForNull" value="${jdbcTypeForNull}"/>
+    <setting name="lazyLoadTriggerMethods" value="equals,clone,hashCode,toString,xxx"/>
+    <setting name="safeResultHandlerEnabled" value="false"/>
+    <setting name="defaultScriptingLanguage" value="org.apache.ibatis.scripting.defaults.RawLanguageDriver"/>
+    <setting name="callSettersOnNulls" value="true"/>
+    <setting name="logPrefix" value="mybatis_"/>
+    <setting name="logImpl" value="SLF4J"/>
+    <setting name="vfsImpl" value="org.apache.ibatis.io.JBoss6VFS"/>
+    <setting name="configurationFactory" value="java.lang.String"/>
+    <setting name="defaultEnumTypeHandler" value="org.apache.ibatis.type.EnumOrdinalTypeHandler"/>
+    <setting name="shrinkWhitespacesInSql" value="true"/>
+    <setting name="argNameBasedConstructorAutoMapping" value="true"/>
+    <setting name="defaultSqlProviderType" value="org.apache.ibatis.builder.XmlConfigBuilderTest$MySqlProvider"/>
+    <setting name="nullableOnForEach" value="true"/>
+  </settings>
+
+  <typeAliases>
+    <typeAlias alias="BlogAuthor" type="org.apache.ibatis.domain.blog.Author"/>
+    <typeAlias type="org.apache.ibatis.domain.blog.Blog"/>
+    <typeAlias type="org.apache.ibatis.domain.blog.Post"/>
+    <package name="org.apache.ibatis.domain.jpetstore"/>
+  </typeAliases>
+
+  <typeHandlers>
+    <typeHandler javaType="String" handler="org.apache.ibatis.builder.CustomStringTypeHandler"/>
+    <typeHandler javaType="String" jdbcType="VARCHAR" handler="org.apache.ibatis.builder.CustomStringTypeHandler"/>
+    <typeHandler handler="org.apache.ibatis.builder.CustomLongTypeHandler"/>
+    <package name="org.apache.ibatis.builder.typehandler"/>
+  </typeHandlers>
+
+  <objectFactory type="org.apache.ibatis.builder.ExampleObjectFactory">
+    <property name="objectFactoryProperty" value="100"/>
+  </objectFactory>
+
+  <objectWrapperFactory type="org.apache.ibatis.builder.CustomObjectWrapperFactory" />
+
+  <reflectorFactory type="org.apache.ibatis.builder.CustomReflectorFactory"/>
+
+  <plugins>
+    <plugin interceptor="org.apache.ibatis.builder.ExamplePlugin">
+      <property name="pluginProperty" value="100"/>
+    </plugin>
+  </plugins>
+
+  <environments default="development">
+    <environment id="development">
+      <transactionManager type="JDBC">
+        <property name="" value=""/>
+      </transactionManager>
+      <dataSource type="UNPOOLED">
+        <property name="driver" value="${driver}"/>
+        <property name="url" value="${url}"/>
+        <property name="username" value="${username}"/>
+        <property name="password" value="${password}"/>
+      </dataSource>
+    </environment>
+  </environments>
+
+  <databaseIdProvider type="DB_VENDOR">
+    <property name="Apache Derby" value="derby"/>
+  </databaseIdProvider>
+
+  <mappers>
+    <mapper resource="org/apache/ibatis/builder/BlogMapper.xml"/>
+    <mapper url="file:./src/test/resources/org/apache/ibatis/builder/NestedBlogMapper.xml"/>
+    <mapper class="org.apache.ibatis.builder.CachedAuthorMapper"/>
+    <package name="org.apache.ibatis.builder.mapper"/>
+  </mappers>
+
+</configuration>

@@ -29,7 +29,7 @@ import org.apache.ibatis.reflection.wrapper.ObjectWrapperFactory;
 
 /**
  * 元信息对象，即只要拿到指定对象就可以操作其属性，不需要通过对象调用对象的方法
- * 原理还是通过反射实现
+ * 原理还是通过反射实现  本身不做任何工作，借助对象包装类 ObjectWrapper完成所有工作
  *
  * @author Clinton Begin
  */

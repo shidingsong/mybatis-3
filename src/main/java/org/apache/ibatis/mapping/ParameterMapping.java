@@ -23,6 +23,7 @@ import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
 /**
+ * 每个参数映射<>标签都被创建为一个ParameterMapping实例
  * @author Clinton Begin
  */
 public class ParameterMapping {

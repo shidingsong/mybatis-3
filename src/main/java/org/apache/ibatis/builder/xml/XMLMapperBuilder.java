@@ -123,12 +123,20 @@ public class XMLMapperBuilder extends BaseBuilder {
 
   private void configurationElement(XNode context) {
     try {
+      // <mapper namespace=" ... " />
       String namespace = context.getStringAttribute("namespace");
       if (namespace == null || namespace.isEmpty()) {
         throw new BuilderException("Mapper's namespace cannot be empty");
       }
       builderAssistant.setCurrentNamespace(namespace);
+      //mapper.xml文件中只出现一次
+      // <cache-ref namespace="org.apache.ibatis.submitted.resolution.cachereffromxml.UserMapper" />
       cacheRefElement(context.evalNode("cache-ref"));
+      //mapper.xml文件中只出现一次
+      // <cache type="org.apache.ibatis.submitted.global_variables.CustomCache">
+      //   <property name="stringValue" value="${stringProperty}"/>
+      //    ....
+      // </cache>
       cacheElement(context.evalNode("cache"));
       parameterMapElement(context.evalNodes("/mapper/parameterMap"));
       resultMapElements(context.evalNodes("/mapper/resultMap"));
@@ -208,8 +216,8 @@ public class XMLMapperBuilder extends BaseBuilder {
    *   <cache-ref
    *     namespace="org.apache.ibatis.submitted.resolution.cachereffromxml.UserMapper" />
    *
-   *     缓存参考因为通过namespace指向其他的缓存。所以会出现第一次解析的时候指向的缓存还不存在的情况，
-   *     所以需要在所有的mapper文件加载完成后进行二次处理，不仅仅是缓存参考，其他的CRUD也一样。
+   *     缓存引用因为通过namespace指向其他的缓存。所以会出现第一次解析的时候指向的缓存还不存在的情况，
+   *     所以需要在所有的mapper文件加载完成后进行二次处理，不仅仅是缓存引用，其他的CRUD也一样。
    *     所以在XMLMapperBuilder.configuration中有很多的incompleteXXX，
    *     这种设计模式类似于JVM GC中的mark and sweep，标记、然后处理。
    *     所以当捕获到IncompleteElementException异常时，没有终止执行，
@@ -361,7 +369,7 @@ public class XMLMapperBuilder extends BaseBuilder {
   private ResultMap resultMapElement(XNode resultMapNode, List<ResultMapping> additionalResultMappings,
       Class<?> enclosingType) {
     ErrorContext.instance().activity("processing " + resultMapNode.getValueBasedIdentifier());
-    // <resultMap></resultMap> 中的类型取值顺序：javaType > resultType > ofType > type
+    // <resultMap></resultMap> 中的类型取值顺序：javaType < resultType < ofType < type
     String type = resultMapNode.getStringAttribute("type", resultMapNode.getStringAttribute("ofType",
         resultMapNode.getStringAttribute("resultType", resultMapNode.getStringAttribute("javaType"))));
     Class<?> typeClass = resolveClass(type);
@@ -419,9 +427,9 @@ public class XMLMapperBuilder extends BaseBuilder {
    *
    * 解析构造器
    *
-   * @param resultChild
-   * @param resultType
-   * @param resultMappings
+   * @param resultChild constructor标签节点
+   * @param resultType  resultMap对应的实体类型 type
+   * @param resultMappings 结果集映射集合这里是空集合
    */
   private void processConstructorElement(XNode resultChild, Class<?> resultType, List<ResultMapping> resultMappings) {
     List<XNode> argChildren = resultChild.getChildren();

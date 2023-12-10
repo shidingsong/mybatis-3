@@ -21,6 +21,7 @@ import org.apache.ibatis.mapping.SqlSource;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * 动态SQL语句的封装，在运行时需要根据参数处理、等标签或者${} SQL拼接之后才能生成最后要执行的静态SQL语句
  * @author Clinton Begin
  */
 public class DynamicSqlSource implements SqlSource {

@@ -132,8 +132,11 @@ public abstract class BaseExecutor implements Executor {
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler)
       throws SQLException {
+    // 首先根据传递的参数获取BoundSql对象，对于不同类型的SqlSource，对应的getBoundSql实现不同
     BoundSql boundSql = ms.getBoundSql(parameter);
+    // 创建缓存key
     CacheKey key = createCacheKey(ms, parameter, rowBounds, boundSql);
+   // 委托给重载的query
     return query(ms, parameter, rowBounds, resultHandler, key, boundSql);
   }
 
@@ -145,16 +148,20 @@ public abstract class BaseExecutor implements Executor {
     if (closed) {
       throw new ExecutorException("Executor was closed.");
     }
+// 如果需要刷新缓存(默认DML需要刷新,也可以语句层面修改), 且queryStack(应该是用于嵌套查询的场景)=0
     if (queryStack == 0 && ms.isFlushCacheRequired()) {
       clearLocalCache();
     }
     List<E> list;
     try {
       queryStack++;
+      // 如果查询不需要应用结果处理器,则先从缓存获取,这样可以避免数据库查询。
+      // 我们后面会分析到localCache是什么时候被设置进去的
       list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
       if (list != null) {
         handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
       } else {
+        // 不管是因为需要应用结果处理器还是缓存中没有,都从数据库中查询
         list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
       }
     } finally {
@@ -166,6 +173,7 @@ public abstract class BaseExecutor implements Executor {
       }
       // issue #601
       deferredLoads.clear();
+      // 如果设置了一级缓存是STATEMENT级别而非默认的SESSION级别，一级缓存就去掉了
       if (configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) {
         // issue #482
         clearLocalCache();
@@ -199,6 +207,7 @@ public abstract class BaseExecutor implements Executor {
     if (closed) {
       throw new ExecutorException("Executor was closed.");
     }
+    // 根据映射语句id,分页信息,jdbc规范化的预编译sql,所有映射参数的值以及环境id的值,计算出缓存Key
     CacheKey cacheKey = new CacheKey();
     cacheKey.update(ms.getId());
     cacheKey.update(rowBounds.getOffset());
@@ -309,6 +318,8 @@ public abstract class BaseExecutor implements Executor {
 
   private void handleLocallyCachedOutputParameters(MappedStatement ms, CacheKey key, Object parameter,
       BoundSql boundSql) {
+    // 只处理存储过程和函数调用的出参, 因为存储过程和函数的返回不是通过ResultMap而是ParameterMap来的，
+    // 所以只要把缓存的非IN模式参数取出来设置到parameter对应的属性上即可
     if (ms.getStatementType() == StatementType.CALLABLE) {
       final Object cachedParameter = localOutputParameterCache.getObject(key);
       if (cachedParameter != null && parameter != null) {
@@ -328,13 +339,16 @@ public abstract class BaseExecutor implements Executor {
   private <E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds rowBounds,
       ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
     List<E> list;
+    // 一开始放个占位符进去,这个还真不知道用意是什么???
     localCache.putObject(key, EXECUTION_PLACEHOLDER);
     try {
+      // doQuery是个抽象方法,每个具体的执行器都要自己去实现,我们先看SIMPLE的
       list = doQuery(ms, parameter, rowBounds, resultHandler, boundSql);
     } finally {
       localCache.removeObject(key);
     }
-    localCache.putObject(key, list);
+    localCache.putObject(key, list);// 把真正的查询结果放到缓存中去
+    // 如果是存储过程类型,则把查询参数放到本地出参缓存中, 所以第一次一定为空
     if (ms.getStatementType() == StatementType.CALLABLE) {
       localOutputParameterCache.putObject(key, parameter);
     }

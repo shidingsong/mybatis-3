@@ -59,8 +59,12 @@ public class SimpleExecutor extends BaseExecutor {
     Statement stmt = null;
     try {
       Configuration configuration = ms.getConfiguration();
+      // 根据上下文参数和具体的执行器new一个StatementHandler, 其中包含了所有必要的信息,
+      // 比如结果处理器、参数处理器、执行器等等,主要有三种类型的语句处理器UNPREPARE、PREPARE、CALLABLE。
+      // 默认是PREPARE类型，通过mapper语句上的statementType属性进行设置,一般除了存储过程外不应该设置
       StatementHandler handler = configuration.newStatementHandler(wrapper, ms, parameter, rowBounds, resultHandler,
           boundSql);
+      // 这一步是真正和JDBC打交道
       stmt = prepareStatement(handler, ms.getStatementLog());
       return handler.query(stmt, resultHandler);
     } finally {
@@ -86,8 +90,11 @@ public class SimpleExecutor extends BaseExecutor {
 
   private Statement prepareStatement(StatementHandler handler, Log statementLog) throws SQLException {
     Statement stmt;
+    // 获取JDBC连接
     Connection connection = getConnection(statementLog);
+    // 调用语句处理器的prepare方法
     stmt = handler.prepare(connection, transaction.getTimeout());
+    // 设置参数
     handler.parameterize(stmt);
     return stmt;
   }
